@@ -1,0 +1,171 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SignBridge</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- media pipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+  </head>
+  <body>
+    <div class="container">
+      <h1>SignBridge</h1>
+      <p class="subtitle">Real Time Communication Assistant</p>
+
+      <div class="layout-utama">
+        <div class="section">
+          <h2>Gesture Mode</h2>
+          <div class="btn-group">
+            <button
+              id="btn-cam"
+              class="btn-cam"
+              onclick="toggleCamera('gesture')"
+            >
+              Aktifkan/Matikan kamera
+            </button>
+          </div>
+          <div id="gestureOutput" class="output-box">Menunggu...</div>
+        </div>
+        <div class="section">
+          <h2>Speech Mode</h2>
+          <div class="btn-group">
+            <button
+              id="button-speech"
+              class="button-speech"
+              onclick="toggleMic('speech')"
+            >
+              Aktifkan/Matikan Mikrofon
+            </button>
+          </div>
+          <div id="speechoutput" class="output-box">Menunggu...</div>
+        </div>
+      </div>
+
+      <div class="video-cantainer">
+        <video id="camera" autoplay playsinline></video>
+      </div>
+      <div id="status-label">Siap digunakan di Chrome/Edge</div>
+    </div>
+
+    <script>
+      console.log("SCRIPT JALAN");
+
+      const video = document.getElementById("camera");
+      const gesturetext = document.getElementById("gestureOutput");
+      const speechOutputBox = document.getElementById("speechoutput")
+      const speechtext =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+      let gestureActive = false;
+      let micActive = false;
+      let recognition = null;
+      let cameraActive = false;
+
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = "id-ID";
+        recognition.continuous = true;
+
+        recognition.onresult = (event) => {
+          const text = event.results[event.results.length - 1][0].transcript;
+          speechOutputBox.innerText = "Suara:" + text;
+        };
+      }
+      async function toggleMic() {
+        if (!recognition) return alert("Browser tidak mendukung.");
+
+        if (!micActive) {
+          await recognition.start(); // Menunggu proses mic dimulai
+          micActive = true;
+          updateBtn("button-speech", "Matikan Mikrofon", true);
+          gesturetext.innerText = "Mendengarkan suara...";
+        } else {
+          await recognition.stop();
+          micActive = false;
+          updateBtn("button-speech", "Aktifkan Mikrofon", false);
+        }
+      }
+
+      const hands = new Hands({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        },
+      });
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 0,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+      });
+
+      hands.onResults(async (results) => {
+        if (
+          results.multiHandLandmarks &&
+          results.multiHandLandmarks.length > 0
+        ) {
+          const landmarks = results.multiHandLandmarks[0];
+
+          const halo =
+            landmarks[8].y < landmarks[6].y &&
+            landmarks[12].y < landmarks[10].y &&
+            landmarks[16].y > landmarks[14].y &&
+            landmarks[20].y > landmarks[18].y;
+
+          const apakabar =
+            landmarks[4].y < landmarks[3].y &&
+            landmarks[8].y > landmarks[6].y &&
+            landmarks[12].y > landmarks[10].y &&
+            landmarks[16].y > landmarks[14].y;
+
+          const selamattinggal =
+            landmarks[8].y < landmarks[6].y &&
+            landmarks[12].y < landmarks[10].y &&
+            landmarks[16].y < landmarks[14].y &&
+            landmarks[20].y < landmarks[18].y;
+
+          if (halo) {
+            gesturetext.innerText = "Halo";
+          } else if (apakabar) {
+            gesturetext.innerText = "Apa Kabar?";
+          } else if (selamattinggal) {
+            gesturetext.innerText = "Selamat Tinggal";
+          } else {
+            gesturetext.innerText = "Mendeteksi Gerakan..";
+          }
+        }
+      });
+
+      // kamera
+      const camera = new Camera(video, {
+        onFrame: async () => {
+          if (cameraActive) await hands.send({ image: video });
+        },
+        width: 640,
+        height: 480,
+      });
+
+      async function toggleCamera() {
+        if (!cameraActive) {
+          try {
+            await camera.start();
+            cameraActive = true;
+            updateBtn("btn-cam", "Matikan kamera", true);
+          } catch (err) {
+            alert("Kamera error: " + err);
+          }
+        } else {
+          cameraActive = false;
+          updateBtn("btn-cam", "Aktifkan kamera", false);
+          const stream = video.srcObject;
+          if (stream) stream.getTracks().forEach((item) => item.stop());
+        }
+      }
+      function updateBtn(id, text, isActive) {
+        const btn = document.getElementById(id);
+        btn.innerText = text;
+        isActive ? btn.classList.add("active") : btn.classList.remove("active");
+      }
+    </script>
+  </body>
+</html>

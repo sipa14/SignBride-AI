@@ -80,7 +80,7 @@
           await recognition.start(); // Menunggu proses mic dimulai
           micActive = true;
           updateBtn("button-speech", "Matikan Mikrofon", true);
-          gesturetext.innerText = "Mendengarkan suara...";
+          speechOutputBox.innerText = "Mendengarkan suara...";
         } else {
           await recognition.stop();
           micActive = false;
